@@ -1,9 +1,9 @@
--- B-Tree data class
-data Tree a = Null (Tree a) | Node [a] [Tree a] (Tree a)
+-- BTree data class
+data BTree a = Null (BTree a) | Node [a] [BTree a] (BTree a)
 
 -- show the tree
 -- prints the tree in following format: ((child0) value0 (child1) value1 ... valueN (childN+1))
-instance (Show a) => Show (Tree a) where  
+instance (Show a) => Show (BTree a) where  
     show (Null _) = "(Null)"  
     show (Node values children _) = 
         let
@@ -14,9 +14,9 @@ instance (Show a) => Show (Tree a) where
         in
             "(" ++ show showedFirstChild ++ concatMap (\x -> " " ++ fst x ++ " " ++ snd x) zippedValuesAndChildren ++ ")" 
 
--- treeFind :: value -> Tree -> isInTree
+-- treeFind :: value -> BTree -> isInTree
 -- is this value contained in the tree
-treeFind :: (Ord a) => a -> Tree a -> Bool 
+treeFind :: (Ord a) => a -> BTree a -> Bool 
 treeFind _ (Null _) = False
 treeFind value (Node values children _)
     | value `elem` values = True
@@ -24,22 +24,22 @@ treeFind value (Node values children _)
 
 -- treeAdd :: value -> tree -> treeWithValue
 -- add the value into the tree
--- treeAdd :: (Ord a) => a -> Tree a -> Tree a
+-- treeAdd :: (Ord a) => a -> BTree a -> BTree a
 -- treeAdd value (Null _) = Node [value] []
 -- treeAdd value (Node values children _) = Node (insertIntoSorted value values) children
 
 -- -- treeDelete :: value -> tree -> treeWithoutValue
--- treeDelete :: (Ord a) => a => Tree a -> Tree a 
+-- treeDelete :: (Ord a) => a => BTree a -> BTree a 
 
 -- treeToList :: tree -> list
 -- convert tree into list (values are ordered)
-treeToList :: Tree a -> [a]
+treeToList :: BTree a -> [a]
 treeToList (Null _) = []
 treeToList (Node values children _) = treeToList (head children) ++ concat (zipWith (:) values (map treeToList (tail children)))
 
 -- treeFold :: f -> start -> tree -> result
 -- fold the tree
-treeFold :: ([b] -> [a] -> b) -> b -> Tree a -> b
+treeFold :: ([b] -> [a] -> b) -> b -> BTree a -> b
 treeFold _ start (Null _) = start
 treeFold f start (Node values children _) = f (map (treeFold f start) children) values
 
