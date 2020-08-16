@@ -1,5 +1,5 @@
 -- BTree data class
-data BTree a = Null | Node [a] [BTree a] | Top
+data BTree a = Null | Node [a] [BTree a] | EmptyTree
 
 -- show the tree
 -- prints the tree in following format: ((child0) value0 (child1) value1 ... valueN (childN+1))
@@ -24,13 +24,27 @@ treeFind _ _ = False
 
 -- treeAdd :: value -> tree -> treeWithValue
 -- add the value into the tree
--- treeAdd :: (Ord a) => a -> BTree a -> BTree a
-
--- treeAdd value (Null _) = Node [value] []
--- treeAdd value (Node values children _) = Node (insertIntoSorted value values) children
+treeAdd :: (Ord a) => a -> BTree a -> BTree a
+treeAdd value EmptyTree = Node [value] [Null,Null]
+treeAdd value (Node values children) = Node (insertIntoSorted value values) children
 
 -- -- treeDelete :: value -> tree -> treeWithoutValue
 -- treeDelete :: (Ord a) => a => BTree a -> BTree a 
+
+-- rebalanceNthChild :: n -> tree -> balancedChildTree
+-- balance the tree after insert - if the selected child has more than 2N items, split it into 2 and insert the value into this node
+rebalanceNthChild :: (Ord a) => Int -> BTree a -> BTree a
+rebalanceNthChild n this@(Node values children)
+    | getChildrenCount nthChild  <= 3 = this
+    | otherwise =
+        let
+            splitValues = split nthChild
+            newValue = fst splitValues
+            newChildren = snd splitValues
+        in
+            addValueAndChildren this newValue newChildren
+    where nthChild = children !! n
+rebalanceNthChild _ tree = tree 
 
 -- treeToList :: tree -> list
 -- convert tree into list (values are ordered)
@@ -58,3 +72,32 @@ getCountOfLowerElementsInSortedList _ [] = 0
 getCountOfLowerElementsInSortedList value (first:rest)
     | value < first = 0
     | otherwise = 1 + getCountOfLowerElementsInSortedList value rest
+
+-- split :: tree -> (median, (firstHalfTree,secondHalfTree)
+-- split the tree - return median and 2 B-trees split by this value
+split :: (Ord a) => BTree a -> (a,(BTree a, BTree a))
+split (Node values children) = 
+    let 
+        median = length values `div` 2
+        firstHalfValues = take median values
+        secondHalfValues = drop (median+1) values
+        firstHalfChildren = take (median+1) children
+        secondHalfChildren = drop (median+1) children
+    in
+        (values !! median,(Node firstHalfValues firstHalfChildren,Node secondHalfValues secondHalfChildren))
+split _ = error "Cannot split"
+
+-- addValueAndChildren :: tree -> value -> twoChildren -> newTree
+-- add value and children to the selected tree (used in balancing after insert)
+addValueAndChildren :: (Ord a) => BTree a -> a -> (BTree a, BTree a) -> BTree a
+addValueAndChildren (Node values children) newValue newChildren =
+    let
+        s = getCountOfLowerElementsInSortedList newValue values
+    in
+        Node (take s values ++ [newValue] ++ drop s values) (take s children ++ [fst newChildren,snd newChildren] ++ drop (s+1) children)
+addValueAndChildren _ _ _ = error "Cannot add to Leaf"
+
+-- get children count of this node
+getChildrenCount :: BTree a -> Int
+getChildrenCount (Node _ children) = length children
+getChildrenCount _ = 0
