@@ -44,18 +44,6 @@ nodeAdd value Null = Node [value] [Null,Null]
 -- -- treeDelete :: value -> tree -> treeWithoutValue
 -- treeDelete :: (Ord a) => a => BTree a -> BTree a 
 
-rebalanceRoot :: (Ord a) => BTree a -> BTree a
-rebalanceRoot this@(Node _ _)
-    | getChildrenCount this <= 3 = this
-    | otherwise =
-        let
-            splitValues = split this
-            newValue = fst splitValues
-            newChildren = snd splitValues
-        in
-            Node [newValue] [fst newChildren, snd newChildren]
-rebalanceRoot tree = tree
-
 -- rebalanceNthChild :: n -> tree -> balancedChildTree
 -- balance the tree after insert - if the selected child has more than 2N items, split it into 2 and insert the value into this node
 rebalanceNthChild :: (Ord a) => Int -> BTree a -> BTree a
@@ -70,6 +58,19 @@ rebalanceNthChild n this@(Node values children)
             addValueAndChildren this newValue newChildren
     where nthChild = children !! n
 rebalanceNthChild _ tree = tree 
+
+-- rebalance root
+rebalanceRoot :: (Ord a) => BTree a -> BTree a
+rebalanceRoot this@(Node _ _)
+    | getChildrenCount this <= 3 = this
+    | otherwise =
+        let
+            splitValues = split this
+            newValue = fst splitValues
+            newChildren = snd splitValues
+        in
+            Node [newValue] [fst newChildren, snd newChildren]
+rebalanceRoot tree = tree
 
 -- treeToList :: tree -> list
 -- convert tree into list (values are ordered)
