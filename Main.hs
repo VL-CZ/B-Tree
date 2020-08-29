@@ -25,7 +25,10 @@ treeFind _ _ = False
 -- treeAdd :: value -> tree -> treeWithValue
 -- add the value into the tree
 treeAdd :: (Ord a) => a -> BTree a -> BTree a
-treeAdd value this@(Node values children) 
+treeAdd value node = rebalanceRoot $ nodeAdd value node
+
+nodeAdd :: (Ord a) => a -> BTree a -> BTree a
+nodeAdd value this@(Node values children) 
     | value `elem` values = this 
     | allChildrenAreNull this = Node (insertIntoSorted value values) (Null:children)
     | otherwise = 
@@ -33,13 +36,25 @@ treeAdd value this@(Node values children)
             childIndex = getCountOfLowerElementsInSortedList value values
             lower = take childIndex children
             greater = drop (childIndex+1) children
-            newChild = treeAdd value (children !! childIndex)
+            newChild = nodeAdd value (children !! childIndex)
         in
             rebalanceNthChild childIndex (Node values (lower ++ [newChild] ++ greater))
-treeAdd value Null = Node [value] [Null,Null]
+nodeAdd value Null = Node [value] [Null,Null]
 
 -- -- treeDelete :: value -> tree -> treeWithoutValue
 -- treeDelete :: (Ord a) => a => BTree a -> BTree a 
+
+rebalanceRoot :: (Ord a) => BTree a -> BTree a
+rebalanceRoot this@(Node _ _)
+    | getChildrenCount this <= 3 = this
+    | otherwise =
+        let
+            splitValues = split this
+            newValue = fst splitValues
+            newChildren = snd splitValues
+        in
+            Node [newValue] [fst newChildren, snd newChildren]
+rebalanceRoot tree = tree
 
 -- rebalanceNthChild :: n -> tree -> balancedChildTree
 -- balance the tree after insert - if the selected child has more than 2N items, split it into 2 and insert the value into this node
@@ -112,6 +127,8 @@ getChildrenCount :: BTree a -> Int
 getChildrenCount (Node _ children) = length children
 getChildrenCount _ = 0
 
+-- determines if all children are Null 
+-- because B-Tree has all leafs in the same depth, it's sufficient to just check if the first child is Null
 allChildrenAreNull :: BTree a -> Bool
 allChildrenAreNull (Node _ (Null:_)) = True
 allChildrenAreNull _ = False
