@@ -1,5 +1,5 @@
 -- BTree data class
-data BTree a = Null | Node [a] [BTree a] | EmptyTree
+data BTree a = Null | Node [a] [BTree a]
 
 -- show the tree
 -- prints the tree in following format: ((child0) value0 (child1) value1 ... valueN (childN+1))
@@ -25,8 +25,18 @@ treeFind _ _ = False
 -- treeAdd :: value -> tree -> treeWithValue
 -- add the value into the tree
 treeAdd :: (Ord a) => a -> BTree a -> BTree a
-treeAdd value EmptyTree = Node [value] [Null,Null]
-treeAdd value (Node values children) = Node (insertIntoSorted value values) children
+treeAdd value this@(Node values children) 
+    | value `elem` values = this 
+    | allChildrenAreNull this = Node (insertIntoSorted value values) (Null:children)
+    | otherwise = 
+        let
+            childIndex = getCountOfLowerElementsInSortedList value values
+            lower = take childIndex children
+            greater = drop (childIndex+1) children
+            newChild = treeAdd value (children !! childIndex)
+        in
+            rebalanceNthChild childIndex (Node values (lower ++ [newChild] ++ greater))
+treeAdd value Null = Node [value] [Null,Null]
 
 -- -- treeDelete :: value -> tree -> treeWithoutValue
 -- treeDelete :: (Ord a) => a => BTree a -> BTree a 
@@ -101,3 +111,7 @@ addValueAndChildren _ _ _ = error "Cannot add to Leaf"
 getChildrenCount :: BTree a -> Int
 getChildrenCount (Node _ children) = length children
 getChildrenCount _ = 0
+
+allChildrenAreNull :: BTree a -> Bool
+allChildrenAreNull (Node _ (Null:_)) = True
+allChildrenAreNull _ = False
