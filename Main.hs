@@ -12,7 +12,7 @@ instance (Show a) => Show (BTree a) where
             zippedValuesAndChildren = zip showedValues showedChildren
         in
             "(" ++ show showedFirstChild ++ concatMap (\x -> " " ++ fst x ++ " " ++ snd x) zippedValuesAndChildren ++ ")" 
-    show _ = "(Null)"
+    show _ = "Null"
 
 -- treeFind :: value -> BTree -> isInTree
 -- is this value contained in the tree
@@ -41,13 +41,28 @@ nodeAdd value this@(Node values children)
             rebalanceNthChild childIndex (Node values (lower ++ [newChild] ++ greater))
 nodeAdd value Null = Node [value] [Null,Null]
 
--- -- treeDelete :: value -> tree -> treeWithoutValue
--- treeDelete :: (Ord a) => a => BTree a -> BTree a 
+-- treeDelete :: value -> tree -> treeWithoutValue
+treeDelete :: (Ord a) => a -> BTree a -> BTree a 
+treeDelete value this@(Node values children)
+    | allChildrenAreNull this = 
+        let 
+            remainingValues = [ x | x <- values, x /= value ]
+        in 
+            Node remainingValues (tail children)
+    | otherwise = 
+        let
+            childIndex = getCountOfLowerElementsInSortedList value values
+            lower = take childIndex children
+            greater = drop (childIndex+1) children
+            newChild = treeDelete value (children !! childIndex)
+        in
+            Node values (lower ++ [newChild] ++ greater)
+treeDelete _ _ = error ""
 
 -- rebalanceNthChild :: n -> tree -> balancedChildTree
 -- balance the tree after insert - if the selected child has more than 2N items, split it into 2 and insert the value into this node
 rebalanceNthChild :: (Ord a) => Int -> BTree a -> BTree a
-rebalanceNthChild n this@(Node values children)
+rebalanceNthChild n this@(Node _ children)
     | getChildrenCount nthChild  <= 3 = this
     | otherwise =
         let
