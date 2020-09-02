@@ -44,11 +44,8 @@ nodeAdd value Null = Node [value] [Null,Null]
 -- treeDelete :: value -> tree -> treeWithoutValue
 treeDelete :: (Ord a) => a -> BTree a -> BTree a 
 treeDelete value this@(Node values children)
-    | allChildrenAreNull this = 
-        let 
-            remainingValues = [ x | x <- values, x /= value ]
-        in 
-            Node remainingValues (tail children)
+    | allChildrenAreNull this && value `elem` values = 
+            Node [ x | x <- values, x /= value ] (tail children)
     | otherwise = 
         let
             childIndex = getCountOfLowerElementsInSortedList value values
@@ -58,6 +55,26 @@ treeDelete value this@(Node values children)
         in
             Node values (lower ++ [newChild] ++ greater)
 treeDelete _ _ = error ""
+
+extractPredecessor :: BTree a -> Int -> (a, BTree a)
+extractPredecessor (Node values children) selected = 
+    let
+        newTree = extractLast (children !! selected)
+        firstHalf = take selected children
+        secondHalf = drop (selected + 1) children
+    in 
+        (fst newTree, Node values (firstHalf ++ [snd newTree] ++ secondHalf)) 
+extractPredecessor _ _ = error "Cannot extract"
+
+extractLast :: BTree a -> (a, BTree a)
+extractLast this@(Node values children)
+    | allChildrenAreNull this = (last values, Node (init values) (tail children))
+    | otherwise = 
+        let
+            lastChild = extractLast $ last children
+        in
+            (fst lastChild, Node values (init children ++ [snd lastChild]))
+extractLast _ = error "Cannot extract" 
 
 -- rebalanceNthChild :: n -> tree -> balancedChildTree
 -- balance the tree after insert - if the selected child has more than 2N items, split it into 2 and insert the value into this node
