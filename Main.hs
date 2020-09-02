@@ -1,3 +1,6 @@
+import Data.List
+import Data.Maybe
+
 -- BTree data class
 data BTree a = Null | Node [a] [BTree a]
 
@@ -46,14 +49,20 @@ treeDelete :: (Ord a) => a -> BTree a -> BTree a
 treeDelete value this@(Node values children)
     | allChildrenAreNull this && value `elem` values = 
             Node [ x | x <- values, x /= value ] (tail children)
+    | value `elem` values = 
+        let
+            index = fromJust $ elemIndex value values
+            new = extractPredecessor this index
+            newValues = insertAtNthPosition index (fst new) (delete value values)
+            newChildren = insertAtNthPosition index (snd new) (deleteAtNThPosition index children)
+        in
+            Node newValues newChildren
     | otherwise = 
         let
             childIndex = getCountOfLowerElementsInSortedList value values
-            lower = take childIndex children
-            greater = drop (childIndex+1) children
             newChild = treeDelete value (children !! childIndex)
         in
-            Node values (lower ++ [newChild] ++ greater)
+            Node values (insertAtNthPosition childIndex newChild children)
 treeDelete _ _ = error ""
 
 extractPredecessor :: BTree a -> Int -> (a, BTree a)
@@ -165,3 +174,11 @@ getChildrenCount _ = 0
 allChildrenAreNull :: BTree a -> Bool
 allChildrenAreNull (Node _ (Null:_)) = True
 allChildrenAreNull _ = False
+
+-- insert element into list at n-th position and return the new list
+insertAtNthPosition :: Int -> a -> [a] -> [a]
+insertAtNthPosition n value list = take n list ++ [value] ++ drop (n+1) list
+
+-- insert the element at n-th position and return the new list
+deleteAtNThPosition :: Int -> [a] -> [a]
+deleteAtNThPosition n list = take n list ++ drop (n+1) list
