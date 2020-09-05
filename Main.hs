@@ -17,7 +17,7 @@ instance (Show a) => Show (BTree a) where
             "(" ++ show showedFirstChild ++ concatMap (\x -> " " ++ fst x ++ " " ++ snd x) zippedValuesAndChildren ++ ")" 
     show _ = "Null"
 
-data ChildPosition = Before | After deriving (Eq)
+data NodePosition = Before | After deriving (Eq)
 data ShiftType = ShiftFromLeft | ShiftFromRight deriving (Eq)
 
 -- treeFind :: BTree -> value -> isInTree
@@ -106,6 +106,15 @@ shift (Node values children) n shiftType
         current = children !! n
 shift _ _ _ = error "Cannot shift a leaf node"
 
+-- can we shift values into n-th child from its neighbour (shift from left or right)
+canShiftIntoNthChildFrom :: (Ord a) => BTree a -> Int -> ShiftType -> Bool
+canShiftIntoNthChildFrom this@(Node _ children) n shiftType
+    | shiftType == ShiftFromLeft =
+        n > 0 && not (hasMinimalChildrenCount (children !! (n-1)))
+    | otherwise = 
+        n < (getChildrenCount this - 1) && not (hasMinimalChildrenCount (children !! (n+1)))
+canShiftIntoNthChildFrom _ _ _ = False
+
 -- extract first child and return ((first value,first child), remaining tree)
 extractFirstChild :: BTree a -> ((a, BTree a), BTree a)
 extractFirstChild (Node (fv:rv) (fc:rc)) = 
@@ -119,7 +128,7 @@ extractLastChild (Node values children) =
 extractLastChild _ = error "Cannot extract from a leaf node"
 
 -- add value and child into the tree and return it
-addValueAndChild :: (Ord a) => (a, BTree a) -> BTree a -> ChildPosition -> BTree a
+addValueAndChild :: (Ord a) => (a, BTree a) -> BTree a -> NodePosition -> BTree a
 addValueAndChild (value,child) (Node values children) position =
     let
         valueIndex = getCountOfLowerElementsInSortedList value values
@@ -220,7 +229,7 @@ addValueAndChildren (Node values children) newValue newChildren =
 addValueAndChildren _ _ _ = error "Cannot add to Leaf"
 
 hasMinimalChildrenCount :: BTree a -> Bool
-hasMinimalChildrenCount (Node _ children) = length children >= 2
+hasMinimalChildrenCount this@(Node _ _) = getChildrenCount this == 2
 hasMinimalChildrenCount _ = error "It is a leaf"
 
 -- get children count of this node
