@@ -73,6 +73,35 @@ treeDelete this@(Node values children) value
             Node values (replaceAt childIndex newChild children)
 treeDelete _ _ = error ""
 
+-- mergeNthChildWith :: tree -> n -> with
+-- merge n-th children with its left/right sibling
+mergeNthChildWith :: (Ord a) => BTree a -> Int -> NodePosition -> BTree a
+mergeNthChildWith (Node values children) n np
+    | np == After = 
+        let
+            right = children !! (n+1)
+            v = values !! n
+            newChild = merge nthChild v right
+            newChildren = replaceAt n newChild $ deleteAt (n+1) children 
+        in
+            Node (deleteAt n values) newChildren
+    | otherwise =
+        let
+            left = children !! (n-1)
+            v = values !! (n-1)
+            newChild = merge left v nthChild
+            newChildren = replaceAt (n-1) newChild $ deleteAt n children 
+        in
+            Node (deleteAt n values) newChildren
+    where
+        nthChild = children !! n
+mergeNthChildWith _ _ _ = error "Cannot merge leaf node"
+
+-- merge two BTrees using a separator and return the result 
+merge :: (Ord a) => BTree a -> a -> BTree a -> BTree a
+merge (Node v1 c1) v (Node v2 c2) = Node (v1 ++ v:v2) (c1 ++ c2)
+merge _ _ _ = error "Cannot merge leaf nodes"
+
 -- shift :: tree -> n -> direction
 -- shift values into the n-th child (either from left or right sibling)
 -- used in balancing after delete
