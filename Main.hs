@@ -18,23 +18,23 @@ instance (Show a) => Show (BTree a) where
     show _ = "Null"
 
 data ChildPosition = Before | After deriving (Eq)
-data ShiftType = ShiftLeft | ShiftRight deriving (Eq)
+data ShiftType = ShiftFromLeft | ShiftFromRight deriving (Eq)
 
--- treeFind :: value -> BTree -> isInTree
+-- treeFind :: BTree -> value -> isInTree
 -- is this value contained in the tree
-treeFind :: (Ord a) => a -> BTree a -> Bool 
-treeFind value (Node values children)
+treeFind :: (Ord a) => BTree a -> a -> Bool 
+treeFind (Node values children) value
     | value `elem` values = True
-    | otherwise = treeFind value (children !! getCountOfLowerElementsInSortedList value values)
+    | otherwise = treeFind (children !! getCountOfLowerElementsInSortedList value values) value
 treeFind _ _ = False
 
--- treeAdd :: value -> tree -> treeWithValue
+-- treeAdd :: tree -> value -> treeWithValue
 -- add the value into the tree
-treeAdd :: (Ord a) => a -> BTree a -> BTree a
-treeAdd value node = rebalanceRoot $ nodeAdd value node
+treeAdd :: (Ord a) => BTree a -> a -> BTree a
+treeAdd node value = rebalanceRoot $ nodeAdd node value
 
-nodeAdd :: (Ord a) => a -> BTree a -> BTree a
-nodeAdd value this@(Node values children) 
+nodeAdd :: (Ord a) => BTree a -> a -> BTree a
+nodeAdd this@(Node values children) value
     | value `elem` values = this 
     | allChildrenAreLeaves this = Node (insertIntoSorted value values) (Null:children)
     | otherwise = 
@@ -42,15 +42,15 @@ nodeAdd value this@(Node values children)
             childIndex = getCountOfLowerElementsInSortedList value values
             lower = take childIndex children
             greater = drop (childIndex+1) children
-            newChild = nodeAdd value (children !! childIndex)
+            newChild = nodeAdd (children !! childIndex) value
         in
-            rebalanceNthChild childIndex (Node values (lower ++ [newChild] ++ greater))
-nodeAdd value Null = Node [value] [Null,Null]
+            rebalanceNthChild (Node values (lower ++ [newChild] ++ greater)) childIndex
+nodeAdd Null value = Node [value] [Null,Null]
 
--- treeDelete :: value -> tree -> treeWithoutValue
--- delete value from tree
-treeDelete :: (Ord a) => a -> BTree a -> BTree a 
-treeDelete value this@(Node values children)
+-- treeDelete :: tree -> value -> treeWithoutValue
+-- delete selected value from tree
+treeDelete :: (Ord a) => BTree a -> a -> BTree a 
+treeDelete this@(Node values children) value
     | value `elem` values =
         if allChildrenAreLeaves this
         then
@@ -68,7 +68,7 @@ treeDelete value this@(Node values children)
     | otherwise = 
         let
             childIndex = getCountOfLowerElementsInSortedList value values
-            newChild = treeDelete value (children !! childIndex)
+            newChild = treeDelete (children !! childIndex) value
         in
             Node values (replaceAt childIndex newChild children)
 treeDelete _ _ = error ""
@@ -78,7 +78,7 @@ treeDelete _ _ = error ""
 -- used in balancing after delete
 shift :: (Ord a) => BTree a -> Int -> ShiftType -> BTree a
 shift (Node values children) n shiftType
-    | shiftType == ShiftLeft = 
+    | shiftType == ShiftFromRight = 
         let
             oldValue = values !! n
             right = children !! (n+1)
@@ -140,10 +140,10 @@ extractSmallest this@(Node values children)
             (fst firstChild, Node values (snd firstChild : tail children))
 extractSmallest _ = error "Cannot extract" 
 
--- rebalanceNthChild :: n -> tree -> balancedChildTree
+-- rebalanceNthChild :: tree -> n -> balancedChildTree
 -- balance the tree after insert - if the selected child has more than 2N items, split it into 2 and insert the value into this node
-rebalanceNthChild :: (Ord a) => Int -> BTree a -> BTree a
-rebalanceNthChild n this@(Node _ children)
+rebalanceNthChild :: (Ord a) => BTree a -> Int -> BTree a
+rebalanceNthChild this@(Node _ children) n
     | getChildrenCount nthChild  <= 3 = this
     | otherwise =
         let
@@ -153,7 +153,7 @@ rebalanceNthChild n this@(Node _ children)
         in
             addValueAndChildren this newValue newChildren
     where nthChild = children !! n
-rebalanceNthChild _ tree = tree 
+rebalanceNthChild tree _ = tree 
 
 -- rebalance root
 rebalanceRoot :: (Ord a) => BTree a -> BTree a
