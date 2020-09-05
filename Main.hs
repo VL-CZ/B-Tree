@@ -17,6 +17,8 @@ instance (Show a) => Show (BTree a) where
             "(" ++ show showedFirstChild ++ concatMap (\x -> " " ++ fst x ++ " " ++ snd x) zippedValuesAndChildren ++ ")" 
     show _ = "Null"
 
+data ChildPosition = Before | After deriving (Eq)
+
 -- treeFind :: value -> BTree -> isInTree
 -- is this value contained in the tree
 treeFind :: (Ord a) => a -> BTree a -> Bool 
@@ -50,15 +52,12 @@ treeDelete value this@(Node values children)
     | value `elem` values =
         if allChildrenAreLeaves this
         then
-            if length values == 1
-                then Null
-            else 
-                Node [ x | x <- values, x /= value ] (tail children)
+            Node [ x | x <- values, x /= value ] (tail children)
         else 
             let
                 valueIndex = fromJust (elemIndex value values)
                 childIndex = valueIndex + 1
-                new = extractFirst (children !! childIndex) 
+                new = extractSmallest (children !! childIndex) 
                 newValues = replaceAt valueIndex (fst new) values
                 newChildren = replaceAt childIndex (snd new) children
             in
@@ -72,20 +71,48 @@ treeDelete value this@(Node values children)
             Node values (replaceAt childIndex newChild children)
 treeDelete _ _ = error ""
 
-extractFirst :: BTree a -> (a, BTree a)
-extractFirst this@(Node values children)
+shiftLeft :: (Ord a) => BTree a -> Int -> BTree a
+shiftLeft (Node values children) n = 
+    let
+        oldValue = values !! n
+        current = children !! n
+        right = children !! (n+1)
+        extracted = extractFirstChild right
+        newRight = snd extracted
+        extractedValues = fst extracted
+        newCurrent = addValueAndChild (oldValue, snd extractedValues) current After
+        newValues = replaceAt n (fst extractedValues) values
+        newChildren = replaceAt n newCurrent $ replaceAt (n+1) newRight children
+    in
+        Node newValues newChildren
+shiftLeft _ _ = error "Cannot shift a leaf node"
+
+extractFirstChild :: BTree a -> ((a, BTree a), BTree a)
+extractFirstChild (Node (fv:rv) (fc:rc)) = 
+    ((fv,fc),Node rv rc)
+extractFirstChild _ = error "Cannot extract from a leaf node"
+
+-- add value and child into the tree and return it
+addValueAndChild :: (Ord a) => (a, BTree a) -> BTree a -> ChildPosition -> BTree a
+addValueAndChild (value,child) (Node values children) position =
+    let
+        valueIndex = getCountOfLowerElementsInSortedList value values
+        childIndex = if position == Before then valueIndex else 1 + valueIndex
+    in  
+        Node (insertAt valueIndex value values) (insertAt childIndex child children)
+addValueAndChild _ _ _ = error ""
+
+-- extract smallest value and return it together with the new tree
+extractSmallest :: BTree a -> (a, BTree a)
+extractSmallest this@(Node values children)
     | allChildrenAreLeaves this =
-        if length values == 1
-        then
-            (head values, Null)
-        else
-            (head values, Node (tail values) (tail children))
+        (head values, Node (tail values) (tail children))
     | otherwise = 
         let
-            firstChild = extractFirst $ head children
+            firstChild = extractSmallest $ head children
         in
             (fst firstChild, Node values (snd firstChild : tail children))
-extractFirst _ = error "Cannot extract" 
+extractSmallest _ = error "Cannot extract" 
 
 -- rebalanceNthChild :: n -> tree -> balancedChildTree
 -- balance the tree after insert - if the selected child has more than 2N items, split it into 2 and insert the value into this node
@@ -165,6 +192,10 @@ addValueAndChildren (Node values children) newValue newChildren =
     in
         Node (take s values ++ [newValue] ++ drop s values) (take s children ++ [fst newChildren,snd newChildren] ++ drop (s+1) children)
 addValueAndChildren _ _ _ = error "Cannot add to Leaf"
+
+hasMinimalChildrenCount :: BTree a -> Bool
+hasMinimalChildrenCount (Node _ children) = length children >= 2
+hasMinimalChildrenCount _ = error "It is a leaf"
 
 -- get children count of this node
 getChildrenCount :: BTree a -> Int
