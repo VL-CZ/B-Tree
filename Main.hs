@@ -63,6 +63,7 @@ treeDelete value this@(Node values children)
                 newChildren = replaceAt childIndex (snd new) children
             in
                 Node newValues newChildren
+    | allChildrenAreLeaves this && value `notElem` values = error "Value is not in the tree."
     | otherwise = 
         let
             childIndex = getCountOfLowerElementsInSortedList value values
@@ -70,10 +71,6 @@ treeDelete value this@(Node values children)
         in
             Node values (replaceAt childIndex newChild children)
 treeDelete _ _ = error ""
-
--- extractSuccessorOfNthValue :: BTree a -> Int -> (a, BTree a)
--- extractSuccessorOfNthValue (Node values children) n = extractFirst (children !! (n+1))
--- extractSuccessorOfNthValue _ _ = error "Cannot extract"
 
 extractFirst :: BTree a -> (a, BTree a)
 extractFirst this@(Node values children)
