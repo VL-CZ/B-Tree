@@ -33,7 +33,7 @@ treeAdd value node = rebalanceRoot $ nodeAdd value node
 nodeAdd :: (Ord a) => a -> BTree a -> BTree a
 nodeAdd value this@(Node values children) 
     | value `elem` values = this 
-    | allChildrenAreNull this = Node (insertIntoSorted value values) (Null:children)
+    | allChildrenAreLeaves this = Node (insertIntoSorted value values) (Null:children)
     | otherwise = 
         let
             childIndex = getCountOfLowerElementsInSortedList value values
@@ -47,43 +47,48 @@ nodeAdd value Null = Node [value] [Null,Null]
 -- treeDelete :: value -> tree -> treeWithoutValue
 treeDelete :: (Ord a) => a -> BTree a -> BTree a 
 treeDelete value this@(Node values children)
-    | allChildrenAreNull this && value `elem` values = 
-            Node [ x | x <- values, x /= value ] (tail children)
-    | value `elem` values = 
-        let
-            index = fromJust $ elemIndex value values
-            new = extractPredecessor this index
-            newValues = insertAtNthPosition index (fst new) (delete value values)
-            newChildren = insertAtNthPosition index (snd new) (deleteAtNThPosition index children)
-        in
-            Node newValues newChildren
+    | value `elem` values =
+        if allChildrenAreLeaves this
+        then
+            if length values == 1
+                then Null
+            else 
+                Node [ x | x <- values, x /= value ] (tail children)
+        else 
+            let
+                valueIndex = fromJust (elemIndex value values)
+                childIndex = valueIndex + 1
+                new = extractFirst (children !! childIndex) 
+                newValues = replaceAt valueIndex (fst new) values
+                newChildren = replaceAt childIndex (snd new) children
+            in
+                Node newValues newChildren
     | otherwise = 
         let
             childIndex = getCountOfLowerElementsInSortedList value values
             newChild = treeDelete value (children !! childIndex)
         in
-            Node values (insertAtNthPosition childIndex newChild children)
+            Node values (replaceAt childIndex newChild children)
 treeDelete _ _ = error ""
 
-extractPredecessor :: BTree a -> Int -> (a, BTree a)
-extractPredecessor (Node values children) selected = 
-    let
-        newTree = extractLast (children !! selected)
-        firstHalf = take selected children
-        secondHalf = drop (selected + 1) children
-    in 
-        (fst newTree, Node values (firstHalf ++ [snd newTree] ++ secondHalf)) 
-extractPredecessor _ _ = error "Cannot extract"
+-- extractSuccessorOfNthValue :: BTree a -> Int -> (a, BTree a)
+-- extractSuccessorOfNthValue (Node values children) n = extractFirst (children !! (n+1))
+-- extractSuccessorOfNthValue _ _ = error "Cannot extract"
 
-extractLast :: BTree a -> (a, BTree a)
-extractLast this@(Node values children)
-    | allChildrenAreNull this = (last values, Node (init values) (tail children))
+extractFirst :: BTree a -> (a, BTree a)
+extractFirst this@(Node values children)
+    | allChildrenAreLeaves this =
+        if length values == 1
+        then
+            (head values, Null)
+        else
+            (head values, Node (tail values) (tail children))
     | otherwise = 
         let
-            lastChild = extractLast $ last children
+            firstChild = extractFirst $ head children
         in
-            (fst lastChild, Node values (init children ++ [snd lastChild]))
-extractLast _ = error "Cannot extract" 
+            (fst firstChild, Node values (snd firstChild : tail children))
+extractFirst _ = error "Cannot extract" 
 
 -- rebalanceNthChild :: n -> tree -> balancedChildTree
 -- balance the tree after insert - if the selected child has more than 2N items, split it into 2 and insert the value into this node
@@ -171,14 +176,18 @@ getChildrenCount _ = 0
 
 -- determines if all children are Null 
 -- because B-Tree has all leafs in the same depth, it's sufficient to just check if the first child is Null
-allChildrenAreNull :: BTree a -> Bool
-allChildrenAreNull (Node _ (Null:_)) = True
-allChildrenAreNull _ = False
+allChildrenAreLeaves :: BTree a -> Bool
+allChildrenAreLeaves (Node _ (Null:_)) = True
+allChildrenAreLeaves _ = False
 
--- insert element into list at n-th position and return the new list
-insertAtNthPosition :: Int -> a -> [a] -> [a]
-insertAtNthPosition n value list = take n list ++ [value] ++ drop (n+1) list
+-- insert element into list at the n-th position and return the new list
+insertAt :: Int -> a -> [a] -> [a]
+insertAt n value list = take n list ++ [value] ++ drop n list
 
 -- insert the element at n-th position and return the new list
-deleteAtNThPosition :: Int -> [a] -> [a]
-deleteAtNThPosition n list = take n list ++ drop (n+1) list
+deleteAt :: Int -> [a] -> [a]
+deleteAt n list = take n list ++ drop (n+1) list
+
+-- replace the element at n-th position with newValue and return the list
+replaceAt :: Int -> a -> [a] -> [a]
+replaceAt n newValue list = take n list ++ (newValue : drop (n+1) list)
