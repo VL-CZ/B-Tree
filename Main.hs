@@ -18,6 +18,7 @@ instance (Show a) => Show (BTree a) where
     show _ = "Null"
 
 data ChildPosition = Before | After deriving (Eq)
+data ShiftType = ShiftLeft | ShiftRight deriving (Eq)
 
 -- treeFind :: value -> BTree -> isInTree
 -- is this value contained in the tree
@@ -71,26 +72,45 @@ treeDelete value this@(Node values children)
             Node values (replaceAt childIndex newChild children)
 treeDelete _ _ = error ""
 
-shiftLeft :: (Ord a) => BTree a -> Int -> BTree a
-shiftLeft (Node values children) n = 
-    let
-        oldValue = values !! n
-        current = children !! n
-        right = children !! (n+1)
-        extracted = extractFirstChild right
-        newRight = snd extracted
+shift :: (Ord a) => BTree a -> Int -> ShiftType -> BTree a
+shift (Node values children) n shiftType
+    | shiftType == ShiftLeft = 
+        let
+            oldValue = values !! n
+            right = children !! (n+1)
+            extracted = extractFirstChild right
+            newRight = snd extracted
+            extractedValues = fst extracted
+            newCurrent = addValueAndChild (oldValue, snd extractedValues) current After
+            newValues = replaceAt n (fst extractedValues) values
+            newChildren = replaceAt n newCurrent $ replaceAt (n+1) newRight children
+        in
+            Node newValues newChildren
+    | otherwise = 
+        let
+        oldValue = values !! (n-1)
+        left = children !! (n-1)
+        extracted = extractLastChild left
+        newLeft = snd extracted
         extractedValues = fst extracted
-        newCurrent = addValueAndChild (oldValue, snd extractedValues) current After
-        newValues = replaceAt n (fst extractedValues) values
-        newChildren = replaceAt n newCurrent $ replaceAt (n+1) newRight children
-    in
-        Node newValues newChildren
-shiftLeft _ _ = error "Cannot shift a leaf node"
+        newCurrent = addValueAndChild (oldValue, snd extractedValues) current Before
+        newValues = replaceAt (n-1) (fst extractedValues) values
+        newChildren = replaceAt n newCurrent $ replaceAt (n-1) newLeft children
+        in
+            Node newValues newChildren
+    where
+        current = children !! n
+shift _ _ _ = error "Cannot shift a leaf node"
 
 extractFirstChild :: BTree a -> ((a, BTree a), BTree a)
 extractFirstChild (Node (fv:rv) (fc:rc)) = 
     ((fv,fc),Node rv rc)
 extractFirstChild _ = error "Cannot extract from a leaf node"
+
+extractLastChild :: BTree a -> ((a, BTree a), BTree a)
+extractLastChild (Node values children) = 
+    ((last values, last children),Node (init values) (init children))
+extractLastChild _ = error "Cannot extract from a leaf node"
 
 -- add value and child into the tree and return it
 addValueAndChild :: (Ord a) => (a, BTree a) -> BTree a -> ChildPosition -> BTree a
