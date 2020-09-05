@@ -48,6 +48,7 @@ nodeAdd value this@(Node values children)
 nodeAdd value Null = Node [value] [Null,Null]
 
 -- treeDelete :: value -> tree -> treeWithoutValue
+-- delete value from tree
 treeDelete :: (Ord a) => a -> BTree a -> BTree a 
 treeDelete value this@(Node values children)
     | value `elem` values =
@@ -72,6 +73,9 @@ treeDelete value this@(Node values children)
             Node values (replaceAt childIndex newChild children)
 treeDelete _ _ = error ""
 
+-- shift :: tree -> n -> direction
+-- shift values into the n-th child (either from left or right sibling)
+-- used in balancing after delete
 shift :: (Ord a) => BTree a -> Int -> ShiftType -> BTree a
 shift (Node values children) n shiftType
     | shiftType == ShiftLeft = 
@@ -102,11 +106,13 @@ shift (Node values children) n shiftType
         current = children !! n
 shift _ _ _ = error "Cannot shift a leaf node"
 
+-- extract first child and return ((first value,first child), remaining tree)
 extractFirstChild :: BTree a -> ((a, BTree a), BTree a)
 extractFirstChild (Node (fv:rv) (fc:rc)) = 
     ((fv,fc),Node rv rc)
 extractFirstChild _ = error "Cannot extract from a leaf node"
 
+-- extract last child and return ((last value,last child), remaining tree)
 extractLastChild :: BTree a -> ((a, BTree a), BTree a)
 extractLastChild (Node values children) = 
     ((last values, last children),Node (init values) (init children))
