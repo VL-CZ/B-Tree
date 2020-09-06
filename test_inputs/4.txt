@@ -1,0 +1,10 @@
+let a = listToTree [1..11] 6
+a
+let b = treeDelete a 10
+b
+let c = treeDelete b 4
+c
+let d = treeDelete c 5
+d
+putStrLn ("d contains 5: " ++ show(treeFind d 5))
+putStrLn ("d contains 2: " ++ show(treeFind d 2))

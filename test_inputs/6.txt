@@ -1,0 +1,7 @@
+let x = listToTree [1,50,44,608,7,42,8] 3
+putStrLn ("7 in x: " ++ show(treeFind x 7))
+putStrLn ("52 in x: " ++ show(treeFind x 52))
+putStrLn ("608 in x: " ++ show(treeFind x 608))
+putStrLn ("0 in x: " ++ show(treeFind x 0))
+let list = treeToList x
+list

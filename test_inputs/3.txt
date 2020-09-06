@@ -1,0 +1,6 @@
+let a = listToTree [1..10] 3
+a
+let b = treeDelete a 1
+b
+let c = treeDelete b 2
+c

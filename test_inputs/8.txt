@@ -1,0 +1,6 @@
+let x = listToTree [1..16] 4
+x
+let items = treeFold (\childValues values -> sum childValues + length values) 0 x
+putStrLn ("Number of items: " ++ show(items))
+let depth = treeFold (\childValues values -> 1 + maximum childValues) 0 x
+putStrLn ("Depth is: " ++ show(depth))

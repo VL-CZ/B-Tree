@@ -1,0 +1,4 @@
+let c = listToTree [1..10000] 6
+putStrLn ("5 in x: " ++ show(treeFind c 5))
+putStrLn ("999999 in x: " ++ show(treeFind c 999999))
+putStrLn ("10000 in x: " ++ show(treeFind c 10000))

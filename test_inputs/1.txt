@@ -1,0 +1,3 @@
+let t = listToTree [1..5] 3
+t
+treeAdd t 7

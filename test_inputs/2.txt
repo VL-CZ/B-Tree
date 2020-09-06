@@ -1,0 +1,10 @@
+let a = Null 4
+a
+let b = treeAdd a 5
+b
+let c = treeAdd b 10
+c
+let d = treeAdd c 1
+d
+let e = treeAdd d 14
+e
