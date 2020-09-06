@@ -44,7 +44,7 @@ nodeAdd this@(Node values children) value
             greater = drop (childIndex+1) children
             newChild = nodeAdd (children !! childIndex) value
         in
-            rebalanceNthChild (Node values (lower ++ [newChild] ++ greater)) childIndex
+            rebalanceNthChildOverflow (Node values (lower ++ [newChild] ++ greater)) childIndex
 nodeAdd Null value = Node [value] [Null,Null]
 
 -- treeDelete :: tree -> value -> treeWithoutValue
@@ -70,7 +70,7 @@ treeDelete this@(Node values children) value
             childIndex = getCountOfLowerElementsInSortedList value values
             newChild = treeDelete (children !! childIndex) value
         in
-            Node values (replaceAt childIndex newChild children)
+            rebalanceNthChildUnderflow (Node values (replaceAt childIndex newChild children)) childIndex
 treeDelete _ _ = error ""
 
 -- mergeNthChildWith :: tree -> n -> with
@@ -178,10 +178,24 @@ extractSmallest this@(Node values children)
             (fst firstChild, Node values (snd firstChild : tail children))
 extractSmallest _ = error "Cannot extract" 
 
--- rebalanceNthChild :: tree -> n -> balancedChildTree
--- balance the tree after insert - if the selected child has more than 2N items, split it into 2 and insert the value into this node
-rebalanceNthChild :: (Ord a) => BTree a -> Int -> BTree a
-rebalanceNthChild this@(Node _ children) n
+rebalanceNthChildUnderflow :: (Ord a) => BTree a -> Int -> BTree a
+rebalanceNthChildUnderflow this@(Node _ children) n
+    | getChildrenCount nthChild >= 2 = this
+    | canShiftIntoNthChildFrom this n ShiftFromLeft = shift this n ShiftFromLeft
+    | canShiftIntoNthChildFrom this n ShiftFromRight = shift this n ShiftFromRight
+    | otherwise = 
+        if n > 0
+        then
+            mergeNthChildWith this n Before
+        else
+            mergeNthChildWith this n After
+    where nthChild = children !! n
+rebalanceNthChildUnderflow tree _ = tree 
+
+-- rebalanceNthChildOverflow :: tree -> n -> balancedChildTree
+-- balance the tree after insert - if the selected child has more than 2N children, split it into 2 and insert the value into this node
+rebalanceNthChildOverflow :: (Ord a) => BTree a -> Int -> BTree a
+rebalanceNthChildOverflow this@(Node _ children) n
     | getChildrenCount nthChild  <= 3 = this
     | otherwise =
         let
@@ -191,7 +205,7 @@ rebalanceNthChild this@(Node _ children) n
         in
             addValueAndChildren this newValue newChildren
     where nthChild = children !! n
-rebalanceNthChild tree _ = tree 
+rebalanceNthChildOverflow tree _ = tree 
 
 -- rebalance root
 rebalanceRoot :: (Ord a) => BTree a -> BTree a
