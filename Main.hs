@@ -146,7 +146,7 @@ balanceRoot this@(Node _ children)
 balanceRoot tree = tree
 
 -- mergeNthChildWith :: tree -> n -> with
--- merge n-th children with its left/right sibling
+-- merge n-th child with its left/right sibling
 mergeNthChildWith :: (Ord a) => BTree a -> Int -> NodePosition -> BTree a
 mergeNthChildWith (Node values children) n np
     | np == After = 
@@ -251,50 +251,6 @@ addValueAndChild (value,child) (Node values children) position =
         Node (insertAt valueIndex value values) (insertAt childIndex child children)
 addValueAndChild _ _ _ = error ""
 
-------------------------------------------------------------------------------------
--- FOLD
-------------------------------------------------------------------------------------
-
--- treeFold :: f -> start -> tree -> result
--- fold the tree
-treeFold :: ([b] -> [a] -> b) -> b -> BTree a -> b
-treeFold f start (Node values children) = f (map (treeFold f start) children) values
-treeFold _ start _ = start
-
-------------------------------------------------------------------------------------
--- LIST
-------------------------------------------------------------------------------------
-
--- treeToList :: tree -> list
--- convert tree into list (values are ordered)
-treeToList :: BTree a -> [a]
-treeToList (Node values children) = treeToList (head children) ++ concat (zipWith (:) values (map treeToList (tail children)))
-treeToList _ = []
-
--- add values to tree
-listToTree :: (Ord a) => [a] -> BTree a
-listToTree [] = Null
-listToTree (x:xs) = treeAdd (listToTree xs) x 
-
-------------------------------------------------------------------------------------
--- HELPER FUNCTIONS
-------------------------------------------------------------------------------------
-
--- insertIntoSorted :: value -> list -> result 
--- insert value into sorted list and return it
-insertIntoSorted :: (Ord a) => a -> [a] -> [a]
-insertIntoSorted value [] = [value]
-insertIntoSorted value (x:xs)
-    | value < x = value:x:xs
-    | otherwise = x:insertIntoSorted value xs
-
--- get number of lower elements than value in ordered list
-getCountOfLowerElementsInSortedList :: (Ord a) => a -> [a] -> Int
-getCountOfLowerElementsInSortedList _ [] = 0
-getCountOfLowerElementsInSortedList value (first:rest)
-    | value < first = 0
-    | otherwise = 1 + getCountOfLowerElementsInSortedList value rest
-
 -- split :: tree -> (median, (firstHalfTree,secondHalfTree)
 -- split the tree - return median and 2 B-trees split by this value
 split :: (Ord a) => BTree a -> (a,(BTree a, BTree a))
@@ -319,6 +275,51 @@ addValueAndChildren (Node values children) newValue newChildren =
         Node (take s values ++ [newValue] ++ drop s values) (take s children ++ [fst newChildren,snd newChildren] ++ drop (s+1) children)
 addValueAndChildren _ _ _ = error "Cannot add to Leaf"
 
+------------------------------------------------------------------------------------
+-- FOLD
+------------------------------------------------------------------------------------
+
+-- treeFold :: f -> start -> tree -> result
+-- fold the tree
+treeFold :: ([b] -> [a] -> b) -> b -> BTree a -> b
+treeFold f start (Node values children) = f (map (treeFold f start) children) values
+treeFold _ start _ = start
+
+------------------------------------------------------------------------------------
+-- LIST
+------------------------------------------------------------------------------------
+
+-- treeToList :: tree -> list
+-- convert the tree into list (values are ordered)
+treeToList :: BTree a -> [a]
+treeToList (Node values children) = treeToList (head children) ++ concat (zipWith (:) values (map treeToList (tail children)))
+treeToList _ = []
+
+-- add values from list one by one into the tree
+listToTree :: (Ord a) => [a] -> BTree a
+listToTree [] = Null
+listToTree (x:xs) = treeAdd (listToTree xs) x 
+
+------------------------------------------------------------------------------------
+-- HELPER FUNCTIONS
+------------------------------------------------------------------------------------
+
+-- insertIntoSorted :: value -> list -> result 
+-- insert value into sorted list and return it
+insertIntoSorted :: (Ord a) => a -> [a] -> [a]
+insertIntoSorted value [] = [value]
+insertIntoSorted value (x:xs)
+    | value < x = value:x:xs
+    | otherwise = x:insertIntoSorted value xs
+
+-- get number of lower elements than value in ordered list
+getCountOfLowerElementsInSortedList :: (Ord a) => a -> [a] -> Int
+getCountOfLowerElementsInSortedList _ [] = 0
+getCountOfLowerElementsInSortedList value (first:rest)
+    | value < first = 0
+    | otherwise = 1 + getCountOfLowerElementsInSortedList value rest
+
+-- determine if this node has minimal number of children
 hasMinimalChildrenCount :: BTree a -> Bool
 hasMinimalChildrenCount this@(Node _ _) = getChildrenCount this == 2
 hasMinimalChildrenCount _ = error "It is a leaf"
