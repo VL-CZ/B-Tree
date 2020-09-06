@@ -5,6 +5,7 @@ import Data.Maybe
 -- DATA TYPES
 ------------------------------------------------------------------------------------
 
+-- B-Tree order alias
 type BTreeOrder = Int
 
 -- BTree data class
