@@ -95,7 +95,7 @@ mergeNthChildWith (Node values children) n np
             newChild = merge left v nthChild
             newChildren = replaceAt (n-1) newChild $ deleteAt n children 
         in
-            Node (deleteAt n values) newChildren
+            Node (deleteAt (n-1) values) newChildren
     where
         nthChild = children !! n
 mergeNthChildWith _ _ _ = error "Cannot merge leaf node"
