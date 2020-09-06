@@ -35,7 +35,7 @@ treeAdd node value = rebalanceRoot $ nodeAdd node value
 
 nodeAdd :: (Ord a) => BTree a -> a -> BTree a
 nodeAdd this@(Node values children) value
-    | value `elem` values = this 
+    | value `elem` values = error "Value is already contained in the tree"
     | allChildrenAreLeaves this = Node (insertIntoSorted value values) (Null:children)
     | otherwise = 
         let
@@ -64,7 +64,7 @@ treeDelete this@(Node values children) value
                 newChildren = replaceAt childIndex (snd new) children
             in
                 Node newValues newChildren
-    | allChildrenAreLeaves this && value `notElem` values = error "Value is not in the tree."
+    | allChildrenAreLeaves this && value `notElem` values = error "Value is not contained in the tree."
     | otherwise = 
         let
             childIndex = getCountOfLowerElementsInSortedList value values
