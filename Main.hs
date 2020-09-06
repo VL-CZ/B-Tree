@@ -6,12 +6,12 @@ import Data.Maybe
 ------------------------------------------------------------------------------------
 
 -- BTree data class
-data BTree a = Null | Node [a] [BTree a]
+data BTree a = Null Int | Node Int [a] [BTree a]
 
 -- show the tree
 -- prints the tree in following format: ((child0) value0 (child1) value1 ... valueN (childN+1))
 instance (Show a) => Show (BTree a) where    
-    show (Node values children) = 
+    show (Node values children _) = 
         let
             showedValues = map show values
             showedChildren = map show (tail children)
@@ -34,7 +34,7 @@ data ShiftType = ShiftFromLeft | ShiftFromRight deriving (Eq)
 -- treeFind :: BTree -> value -> isInTree
 -- is this value contained in the tree
 treeFind :: (Ord a) => BTree a -> a -> Bool 
-treeFind (Node values children) value
+treeFind (Node values children _) value
     | value `elem` values = True
     | otherwise = treeFind (children !! getCountOfLowerElementsInSortedList value values) value
 treeFind _ _ = False
@@ -49,9 +49,9 @@ treeAdd :: (Ord a) => BTree a -> a -> BTree a
 treeAdd node value = balanceRoot $ nodeAdd node value
 
 nodeAdd :: (Ord a) => BTree a -> a -> BTree a
-nodeAdd this@(Node values children) value
+nodeAdd this@(Node values children order) value
     | value `elem` values = error "Value is already contained in the tree"
-    | allChildrenAreLeaves this = Node (insertIntoSorted value values) (Null:children)
+    | allChildrenAreLeaves this = Node order (insertIntoSorted value values) (Null:children)
     | otherwise = 
         let
             childIndex = getCountOfLowerElementsInSortedList value values
@@ -60,7 +60,7 @@ nodeAdd this@(Node values children) value
             newChild = nodeAdd (children !! childIndex) value
         in
             balanceNthChildOverflow (Node values (lower ++ [newChild] ++ greater)) childIndex
-nodeAdd Null value = Node [value] [Null,Null]
+nodeAdd (Null _) value = Node [value] [Null,Null]
 
 ------------------------------------------------------------------------------------
 -- DELETE
