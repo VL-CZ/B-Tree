@@ -47,10 +47,13 @@ nodeAdd this@(Node values children) value
             rebalanceNthChildOverflow (Node values (lower ++ [newChild] ++ greater)) childIndex
 nodeAdd Null value = Node [value] [Null,Null]
 
--- treeDelete :: tree -> value -> treeWithoutValue
+treeDelete :: (Ord a) => BTree a -> a -> BTree a
+treeDelete node value = rebalanceRoot $ nodeDelete node value
+
+-- nodeDelete :: tree -> value -> treeWithoutValue
 -- delete selected value from tree
-treeDelete :: (Ord a) => BTree a -> a -> BTree a 
-treeDelete this@(Node values children) value
+nodeDelete :: (Ord a) => BTree a -> a -> BTree a 
+nodeDelete this@(Node values children) value
     | value `elem` values =
         if allChildrenAreLeaves this
         then
@@ -63,15 +66,15 @@ treeDelete this@(Node values children) value
                 newValues = replaceAt valueIndex (fst new) values
                 newChildren = replaceAt childIndex (snd new) children
             in
-                Node newValues newChildren
+                rebalanceNthChildUnderflow (Node newValues newChildren) childIndex
     | allChildrenAreLeaves this && value `notElem` values = error "Value is not contained in the tree."
     | otherwise = 
         let
             childIndex = getCountOfLowerElementsInSortedList value values
-            newChild = treeDelete (children !! childIndex) value
+            newChild = nodeDelete (children !! childIndex) value
         in
             rebalanceNthChildUnderflow (Node values (replaceAt childIndex newChild children)) childIndex
-treeDelete _ _ = error ""
+nodeDelete _ _ = error ""
 
 -- mergeNthChildWith :: tree -> n -> with
 -- merge n-th children with its left/right sibling
@@ -166,20 +169,23 @@ addValueAndChild (value,child) (Node values children) position =
         Node (insertAt valueIndex value values) (insertAt childIndex child children)
 addValueAndChild _ _ _ = error ""
 
--- extract smallest value and return it together with the new tree
-extractSmallest :: BTree a -> (a, BTree a)
+-- extract smallest value and return it together with the balanced new tree
+extractSmallest :: (Ord a) => BTree a -> (a, BTree a)
 extractSmallest this@(Node values children)
     | allChildrenAreLeaves this =
         (head values, Node (tail values) (tail children))
     | otherwise = 
         let
-            firstChild = extractSmallest $ head children
+            extracted = extractSmallest $ head children
+            remaining = Node values (snd extracted : tail children)
         in
-            (fst firstChild, Node values (snd firstChild : tail children))
+            (fst extracted, rebalanceNthChildUnderflow remaining 0)
 extractSmallest _ = error "Cannot extract" 
 
+-- rebalanceNthChildUnderflow :: tree -> n -> balancedChildTree
+-- balance the tree after delete - if the selected child less than N children, borrow node from its neighbour or merge with the neighbour
 rebalanceNthChildUnderflow :: (Ord a) => BTree a -> Int -> BTree a
-rebalanceNthChildUnderflow this@(Node _ children) n
+rebalanceNthChildUnderflow this@(Node _ children) n 
     | getChildrenCount nthChild >= 2 = this
     | canShiftIntoNthChildFrom this n ShiftFromLeft = shift this n ShiftFromLeft
     | canShiftIntoNthChildFrom this n ShiftFromRight = shift this n ShiftFromRight
@@ -209,15 +215,17 @@ rebalanceNthChildOverflow tree _ = tree
 
 -- rebalance root
 rebalanceRoot :: (Ord a) => BTree a -> BTree a
-rebalanceRoot this@(Node _ _)
-    | getChildrenCount this <= 3 = this
-    | otherwise =
+rebalanceRoot this@(Node _ children)
+    | cc < 2 = head children
+    | cc > 3 =
         let
             splitValues = split this
             newValue = fst splitValues
             newChildren = snd splitValues
         in
             Node [newValue] [fst newChildren, snd newChildren]
+    | otherwise = this
+    where cc = getChildrenCount this
 rebalanceRoot tree = tree
 
 -- treeToList :: tree -> list
