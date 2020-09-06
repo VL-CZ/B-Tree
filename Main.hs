@@ -1,6 +1,10 @@
 import Data.List
 import Data.Maybe
 
+------------------------------------------------------------------------------------
+-- DATA TYPES
+------------------------------------------------------------------------------------
+
 -- BTree data class
 data BTree a = Null | Node [a] [BTree a]
 
@@ -17,8 +21,15 @@ instance (Show a) => Show (BTree a) where
             "(" ++ show showedFirstChild ++ concatMap (\x -> " " ++ fst x ++ " " ++ snd x) zippedValuesAndChildren ++ ")" 
     show _ = "Null"
 
+-- represents position of the second node towards the selected node
 data NodePosition = Before | After deriving (Eq)
+
+-- represents type of shift
 data ShiftType = ShiftFromLeft | ShiftFromRight deriving (Eq)
+
+------------------------------------------------------------------------------------
+-- FIND 
+------------------------------------------------------------------------------------
 
 -- treeFind :: BTree -> value -> isInTree
 -- is this value contained in the tree
@@ -28,10 +39,14 @@ treeFind (Node values children) value
     | otherwise = treeFind (children !! getCountOfLowerElementsInSortedList value values) value
 treeFind _ _ = False
 
+------------------------------------------------------------------------------------
+-- ADD
+------------------------------------------------------------------------------------
+
 -- treeAdd :: tree -> value -> treeWithValue
 -- add the value into the tree
 treeAdd :: (Ord a) => BTree a -> a -> BTree a
-treeAdd node value = rebalanceRoot $ nodeAdd node value
+treeAdd node value = balanceRoot $ nodeAdd node value
 
 nodeAdd :: (Ord a) => BTree a -> a -> BTree a
 nodeAdd this@(Node values children) value
@@ -44,14 +59,18 @@ nodeAdd this@(Node values children) value
             greater = drop (childIndex+1) children
             newChild = nodeAdd (children !! childIndex) value
         in
-            rebalanceNthChildOverflow (Node values (lower ++ [newChild] ++ greater)) childIndex
+            balanceNthChildOverflow (Node values (lower ++ [newChild] ++ greater)) childIndex
 nodeAdd Null value = Node [value] [Null,Null]
 
-treeDelete :: (Ord a) => BTree a -> a -> BTree a
-treeDelete node value = rebalanceRoot $ nodeDelete node value
+------------------------------------------------------------------------------------
+-- DELETE
+------------------------------------------------------------------------------------
 
--- nodeDelete :: tree -> value -> treeWithoutValue
--- delete selected value from tree
+-- treeDelete :: tree -> value -> treeWithoutValue
+-- delete selected value from the tree
+treeDelete :: (Ord a) => BTree a -> a -> BTree a
+treeDelete node value = balanceRoot $ nodeDelete node value
+
 nodeDelete :: (Ord a) => BTree a -> a -> BTree a 
 nodeDelete this@(Node values children) value
     | value `elem` values =
@@ -66,15 +85,65 @@ nodeDelete this@(Node values children) value
                 newValues = replaceAt valueIndex (fst new) values
                 newChildren = replaceAt childIndex (snd new) children
             in
-                rebalanceNthChildUnderflow (Node newValues newChildren) childIndex
+                balanceNthChildUnderflow (Node newValues newChildren) childIndex
     | allChildrenAreLeaves this && value `notElem` values = error "Value is not contained in the tree."
     | otherwise = 
         let
             childIndex = getCountOfLowerElementsInSortedList value values
             newChild = nodeDelete (children !! childIndex) value
         in
-            rebalanceNthChildUnderflow (Node values (replaceAt childIndex newChild children)) childIndex
+            balanceNthChildUnderflow (Node values (replaceAt childIndex newChild children)) childIndex
 nodeDelete _ _ = error ""
+
+------------------------------------------------------------------------------------
+-- BALANCE
+------------------------------------------------------------------------------------
+
+-- balanceNthChildUnderflow :: tree -> n -> balancedChildTree
+-- balance the tree after delete - if the selected child less than N children, borrow node from its neighbour or merge with the neighbour
+balanceNthChildUnderflow :: (Ord a) => BTree a -> Int -> BTree a
+balanceNthChildUnderflow this@(Node _ children) n 
+    | getChildrenCount nthChild >= 2 = this
+    | canShiftIntoNthChildFrom this n ShiftFromLeft = shift this n ShiftFromLeft
+    | canShiftIntoNthChildFrom this n ShiftFromRight = shift this n ShiftFromRight
+    | otherwise = 
+        if n > 0
+        then
+            mergeNthChildWith this n Before
+        else
+            mergeNthChildWith this n After
+    where nthChild = children !! n
+balanceNthChildUnderflow tree _ = tree 
+
+-- balanceNthChildOverflow :: tree -> n -> balancedChildTree
+-- balance the tree after insert - if the selected child has more than 2N children, split it into 2 and insert the value into this node
+balanceNthChildOverflow :: (Ord a) => BTree a -> Int -> BTree a
+balanceNthChildOverflow this@(Node _ children) n
+    | getChildrenCount nthChild  <= 3 = this
+    | otherwise =
+        let
+            splitValues = split nthChild
+            newValue = fst splitValues
+            newChildren = snd splitValues
+        in
+            addValueAndChildren this newValue newChildren
+    where nthChild = children !! n
+balanceNthChildOverflow tree _ = tree 
+
+-- balance the root node
+balanceRoot :: (Ord a) => BTree a -> BTree a
+balanceRoot this@(Node _ children)
+    | cc < 2 = head children
+    | cc > 3 =
+        let
+            splitValues = split this
+            newValue = fst splitValues
+            newChildren = snd splitValues
+        in
+            Node [newValue] [fst newChildren, snd newChildren]
+    | otherwise = this
+    where cc = getChildrenCount this
+balanceRoot tree = tree
 
 -- mergeNthChildWith :: tree -> n -> with
 -- merge n-th children with its left/right sibling
@@ -159,16 +228,6 @@ extractLastChild (Node values children) =
     ((last values, last children),Node (init values) (init children))
 extractLastChild _ = error "Cannot extract from a leaf node"
 
--- add value and child into the tree and return it
-addValueAndChild :: (Ord a) => (a, BTree a) -> BTree a -> NodePosition -> BTree a
-addValueAndChild (value,child) (Node values children) position =
-    let
-        valueIndex = getCountOfLowerElementsInSortedList value values
-        childIndex = if position == Before then valueIndex else 1 + valueIndex
-    in  
-        Node (insertAt valueIndex value values) (insertAt childIndex child children)
-addValueAndChild _ _ _ = error ""
-
 -- extract smallest value and return it together with the balanced new tree
 extractSmallest :: (Ord a) => BTree a -> (a, BTree a)
 extractSmallest this@(Node values children)
@@ -179,54 +238,32 @@ extractSmallest this@(Node values children)
             extracted = extractSmallest $ head children
             remaining = Node values (snd extracted : tail children)
         in
-            (fst extracted, rebalanceNthChildUnderflow remaining 0)
+            (fst extracted, balanceNthChildUnderflow remaining 0)
 extractSmallest _ = error "Cannot extract" 
 
--- rebalanceNthChildUnderflow :: tree -> n -> balancedChildTree
--- balance the tree after delete - if the selected child less than N children, borrow node from its neighbour or merge with the neighbour
-rebalanceNthChildUnderflow :: (Ord a) => BTree a -> Int -> BTree a
-rebalanceNthChildUnderflow this@(Node _ children) n 
-    | getChildrenCount nthChild >= 2 = this
-    | canShiftIntoNthChildFrom this n ShiftFromLeft = shift this n ShiftFromLeft
-    | canShiftIntoNthChildFrom this n ShiftFromRight = shift this n ShiftFromRight
-    | otherwise = 
-        if n > 0
-        then
-            mergeNthChildWith this n Before
-        else
-            mergeNthChildWith this n After
-    where nthChild = children !! n
-rebalanceNthChildUnderflow tree _ = tree 
+-- add value and child into the tree and return it
+addValueAndChild :: (Ord a) => (a, BTree a) -> BTree a -> NodePosition -> BTree a
+addValueAndChild (value,child) (Node values children) position =
+    let
+        valueIndex = getCountOfLowerElementsInSortedList value values
+        childIndex = if position == Before then valueIndex else 1 + valueIndex
+    in  
+        Node (insertAt valueIndex value values) (insertAt childIndex child children)
+addValueAndChild _ _ _ = error ""
 
--- rebalanceNthChildOverflow :: tree -> n -> balancedChildTree
--- balance the tree after insert - if the selected child has more than 2N children, split it into 2 and insert the value into this node
-rebalanceNthChildOverflow :: (Ord a) => BTree a -> Int -> BTree a
-rebalanceNthChildOverflow this@(Node _ children) n
-    | getChildrenCount nthChild  <= 3 = this
-    | otherwise =
-        let
-            splitValues = split nthChild
-            newValue = fst splitValues
-            newChildren = snd splitValues
-        in
-            addValueAndChildren this newValue newChildren
-    where nthChild = children !! n
-rebalanceNthChildOverflow tree _ = tree 
+------------------------------------------------------------------------------------
+-- FOLD
+------------------------------------------------------------------------------------
 
--- rebalance root
-rebalanceRoot :: (Ord a) => BTree a -> BTree a
-rebalanceRoot this@(Node _ children)
-    | cc < 2 = head children
-    | cc > 3 =
-        let
-            splitValues = split this
-            newValue = fst splitValues
-            newChildren = snd splitValues
-        in
-            Node [newValue] [fst newChildren, snd newChildren]
-    | otherwise = this
-    where cc = getChildrenCount this
-rebalanceRoot tree = tree
+-- treeFold :: f -> start -> tree -> result
+-- fold the tree
+treeFold :: ([b] -> [a] -> b) -> b -> BTree a -> b
+treeFold f start (Node values children) = f (map (treeFold f start) children) values
+treeFold _ start _ = start
+
+------------------------------------------------------------------------------------
+-- LIST
+------------------------------------------------------------------------------------
 
 -- treeToList :: tree -> list
 -- convert tree into list (values are ordered)
@@ -234,11 +271,14 @@ treeToList :: BTree a -> [a]
 treeToList (Node values children) = treeToList (head children) ++ concat (zipWith (:) values (map treeToList (tail children)))
 treeToList _ = []
 
--- treeFold :: f -> start -> tree -> result
--- fold the tree
-treeFold :: ([b] -> [a] -> b) -> b -> BTree a -> b
-treeFold f start (Node values children) = f (map (treeFold f start) children) values
-treeFold _ start _ = start
+-- add values to tree
+listToTree :: (Ord a) => [a] -> BTree a
+listToTree [] = Null
+listToTree (x:xs) = treeAdd (listToTree xs) x 
+
+------------------------------------------------------------------------------------
+-- HELPER FUNCTIONS
+------------------------------------------------------------------------------------
 
 -- insertIntoSorted :: value -> list -> result 
 -- insert value into sorted list and return it
