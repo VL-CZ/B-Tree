@@ -9,10 +9,12 @@ import Data.Maybe
 type BTreeOrder = Int
 
 -- BTree data class
+-- format: Null order | Node order values children
 data BTree a = Null BTreeOrder | Node BTreeOrder [a] [BTree a]
 
 -- show the tree
 -- prints the tree in following format: ((child0) value0 (child1) value1 ... valueN (childN+1))
+-- leaves are printed as "Null"
 instance (Show a) => Show (BTree a) where    
     show (Node _ values children) = 
         let
@@ -103,7 +105,7 @@ nodeDelete _ _ = error ""
 ------------------------------------------------------------------------------------
 
 -- balanceNthChildUnderflow :: tree -> n -> balancedChildTree
--- balance the tree after delete - if the selected child less than N children, borrow node from its neighbour or merge with the neighbour
+-- balance the tree after delete - if the n-th child less than {ceil(order/2)} children, borrow node from its neighbour or merge with the neighbour
 balanceNthChildUnderflow :: (Ord a) => BTree a -> Int -> BTree a
 balanceNthChildUnderflow this@(Node o _ children) n 
     | getChildrenCount nthChild >= minOrder o = this
@@ -119,7 +121,7 @@ balanceNthChildUnderflow this@(Node o _ children) n
 balanceNthChildUnderflow tree _ = tree 
 
 -- balanceNthChildOverflow :: tree -> n -> balancedChildTree
--- balance the tree after insert - if the selected child has more than 2N children, split it into 2 and insert the value into this node
+-- balance the tree after insert - if the n-th child has more than {order} children, split it into 2 and insert the value into this node
 balanceNthChildOverflow :: (Ord a) => BTree a -> Int -> BTree a
 balanceNthChildOverflow this@(Node order _ children) n
     | getChildrenCount nthChild <= order = this
